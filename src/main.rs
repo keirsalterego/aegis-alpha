@@ -1,6 +1,8 @@
+use nix::libc::MS_PRIVATE;
 use nix::sched::{clone, CloneFlags};
 use nix::sys::wait::waitpid;
 use nix::unistd::{execvp};
+use nix::mount::{mount, MsFlags};
 use std::ffi::CString;
 
 
@@ -10,7 +12,7 @@ fn main() {
     println!("[Parent] Aegis Container Runtime is starting ...");
 
     let mut stack = vec![0; STACK_SIZE];
-    let flags = CloneFlags::CLONE_NEWPID;
+    let flags = CloneFlags::CLONE_NEWPID | CloneFlags::CLONE_NEWNS;
 
     let pid = unsafe {
         clone (
@@ -37,6 +39,21 @@ fn main() {
 fn child_process() -> isize {
     println!("[Child] I'm alive! preparing for brain transplant");
 
+    let _ = mount (
+        None::<&str>,
+        "/",
+        None::<&str>,
+        MsFlags::MS_REC | MsFlags::MS_PRIVATE,
+        None::<&str>
+    );
+
+    let _ = mount (
+        Some("proc"),
+        "/proc",
+        Some("proc"),
+        MsFlags::empty(),
+        None::<&str>
+    );
     let command = CString::new("sh").expect("CString Failed");
     let args = [command.clone()];
 
